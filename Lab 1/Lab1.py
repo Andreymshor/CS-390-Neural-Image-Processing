@@ -24,8 +24,18 @@ class NeuralNetwork():
         self.lr = learningRate
         self.numLayers = numLayers
         self.weights = []
-    
 
+        inputLayerWeights = np.random.randn(self.inputSize, self.neuronsPerLayer)
+        self.weights.append(inputLayerWeights)
+
+        # creates weights for n - 1 layers
+        for _ in range(1, numLayers - 1):
+            hiddenLayer = np.random.randn(self.neuronsPerLayer, self.neuronsPerLayer)
+            self.weights.append(hiddenLayer)
+        
+        outputlayerWeights = np.random.randn(self.neuronsPerLayer, self.outputSize)
+        self.weights.append(outputlayerWeights)
+    
     def __sigmoid(self, x):
         return 1 / (1 + np.exp(-x))
     
@@ -33,11 +43,30 @@ class NeuralNetwork():
         return self.__sigmoid(x) * (1 - self.__sigmoid(x))
     
 
+    def __forward(self):
+        layerOutputList = []
+        
+
+        return layerOutputList
+
+
+
     def __batchGenerator(self, l, n):
         # for i in range(0, len(l), n):
         #     yield l[i : i + n]
         pass
     
+
+    #------------------------- TESTER METHODs ---------------------------#
+
+    # tester method for making sure I printed the right number of weights
+    def printWeights(self): 
+        # test back home
+        print(f"Length of weights array {len(self.weights)}")
+        print(f"Values of array: {self.weights}")
+
+
+
 
 
 
