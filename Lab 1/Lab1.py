@@ -17,10 +17,11 @@ ALGORITHM = "custom_net"
 
 
 class NeuralNetwork():
-    def __init__(self, inputSize, outputSize, neuronsPerLayer, numLayers, learningRate = 0.1):
-        self.inputSize = inputSize
+    def __init__(self, inputs, outputSize, neuronsPerLayer, numLayers, learningRate = 0.1):
+        self.inputs = np.array(inputs)
+        self.inputSize = len(inputs)
         self.outputSize = outputSize
-        self.neuronsPerLayer = neuronsPerLayer
+        self.neuronsPerLayer = neuronsPerLayer 
         self.lr = learningRate
         self.numLayers = numLayers
         self.weights = []
@@ -43,10 +44,17 @@ class NeuralNetwork():
         return self.__sigmoid(x) * (1 - self.__sigmoid(x))
     
 
-    def __forward(self):
+    def __forward(self): # at each layer, we dot product input and weights, and pass it into the activation function.
         layerOutputList = []
-        
-
+        currInput = self.inputs # (1 x n) matrix
+        for weight in self.weights: # weight is an n x m matrix
+            currLayer = np.dot(currInput, weight) 
+            activationList = []
+            for elem in currLayer:
+                activationList.append(self.__sigmoid(elem))
+            layerOutputList.append(activationList)
+            currInput = activationList
+            
         return layerOutputList
 
 
@@ -63,7 +71,15 @@ class NeuralNetwork():
     def printWeights(self): 
         # test back home
         print(f"Length of weights array {len(self.weights)}")
-        print(f"Values of array: {self.weights}")
+        # print(type(self.weights))
+        for array in self.weights:
+            print(f"array: {array}")
+    
+    def printForwardList(self):
+        print("Output of each Layer is:")
+
+        for k, array in enumerate(self.__forward()):
+            print(f"Layer {k + 1}: {array}")
 
 
 
@@ -85,8 +101,12 @@ def guesserClassifier(xTest):
 
 
 def main():
-    print("In here")
-
+    print("TESTER 1")
+    #tester = NeuralNetwork(2, 1, 3, 2)
+    #tester.printWeights()
+    tester2 = NeuralNetwork([1.0,2.0],1,5,3)
+    tester2.printWeights()
+    tester2.printForwardList()
 
 if __name__ == '__main__':
     main()
