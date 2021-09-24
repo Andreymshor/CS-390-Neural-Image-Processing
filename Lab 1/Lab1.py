@@ -5,6 +5,7 @@ from tensorflow import keras
 from tensorflow.keras.utils import to_categorical
 import random
 
+
 random.seed(1618)
 np.random.seed(1618)
 tf.random.set_seed(1618)
@@ -26,6 +27,8 @@ class NeuralNetwork():
         self.lr = learningRate # used to control the learning rate
         self.numLayers = numLayers # used to determine number of hidden layers
         self.weights = [] # used to initialize each layer with weights
+        self.model = []
+
 
         inputLayerWeights = np.random.randn(self.inputSize, self.neuronsPerLayer)
         self.weights.append(inputLayerWeights)
@@ -45,18 +48,20 @@ class NeuralNetwork():
         return x * (1 - x) # because already activated
     
 
-    def __forward(self): # at each layer, we dot product input and weights, and pass it into the activation function.
-        layerOutputList = []
-        currInput = self.inputs # (1 x n) matrix
-        for weight in self.weights: # weight is an n x m matrix
-            currLayer = np.dot(currInput, weight) 
-            activationList = []
-            for elem in currLayer:
-                activationList.append(self.__sigmoid(elem))
-            layerOutputList.append(activationList)
-            currInput = activationList
-            
-        return layerOutputList 
+    def __forward(self, X): # at each layer, we dot product input and weights, and pass it into the activation function.
+        # X is a batch of examples
+        batchOutputList = []
+        for example in X:
+
+            layerOutputList = []
+            currInput = example # (1 x n) matrix
+            for weight in self.weights: # weight is an n x m matrix
+                currLayer = np.dot(currInput, weight) 
+                activationList = [self.__sigmoid(elem) for elem in currLayer]
+                layerOutputList.append(activationList)
+                currInput = activationList
+            batchOutputList.append(layerOutputList)
+        return batchOutputList 
 
     def predict(self):
         prediction = self.__forward()[len(self.__forward()) - 1] # array of 1 by 10
@@ -64,31 +69,63 @@ class NeuralNetwork():
         # predict the actual classifed value
         return prediction
 
-
-    def __loss(self, predictedValues, actualValues):
-        # if predicted classifed value is = actual value, add 0
-        # else add 1
-        # cost function: (predicted - actual)^2
-        # cost for 1 specific example. Make sure to sum up all costs in a given batch and return avg
-        cost = 0
-        for i in range(len(predictedValues)):
-            cost += (predictedValues[i] - actualValues[i])**2
-        return cost
-
-    def __backPropogation(self, layerOutputList):
-        pass
     
+
+    def __avgloss(self, predictedValues, actualValues):
+        # predictedValues: Will be an array of arrays
+        # actualValues: Will be an array of arrays
+        # cost function: (predicted - actual)^2
+        # cost function derivative: 2 * (predicted - actual)
+        # returns the avg loss and the avg loss derivative
+        cost = 0
+        costDer = 0
+        for i in range(len(predictedValues)):
+            currPrediction = predictedValues[i][len(predictedValues[i]) - 1] # ith array in predicted
+            currActual = actualValues[i] # ith array in actual
+            for j in range(len(currPrediction)):
+                cost += (actualValues[i] - predictedValues[i])**2
+                costDer += 2 * (actualValues[i] - predictedValues[i]) # add to weights
+        return (cost / len(predictedValues) , costDer / len(predictedValues))
+
+
+        
+
+    def __backPropogation(self, batchOutputList, Y):
+        weights = self.weights
+        # predictedValues = layerOutputList[len(layerOutputList) - 1]
+        # LCost, LCostDer = self.__avgloss(predictedValues, Y)
+        # for layer in range(len(layerOutputList) - 1, -1, -1):
+        #     currLayer = layerOutputList[layer]
+        #     sigDelt = [self.__sigmoidDerivative(elem) for elem in currLayer]
+
+             
+        
+        pass
 
     # brains behind training neural network. Will use a loop to go through the examples
     # provided in the input data and labels, with or without batches, along w/ a size 
     # for the minibatches.
+    
     def train(self, epochs = 100000, minibatches = True, mbs = 100):
-        pass
+        for i in epochs:
+           batchX, batchY = self.__batchGenerator(self.inputs, self.labels, mbs)
+           batchOutputList = self.__forward(batchX)
+           self.__backPropogation(batchOutputList, batchY)
+        
+        return self.weights
+    
+    
+    # idea from https://datascience.stackexchange.com/questions/47623/how-feed-a-numpy-array-in-batches-in-keras
+    def __batchGenerator(self, X, Y, batch_size = 1):
+        indices = np.arange(len(X))
+        batch = []
+        while len(batch) != batch_size:
+            np.random.shuffle(indices)
+            for i in indices:
+                batch.append(i)
+            
+        return X[batch], Y[batch]
 
-    def __batchGenerator(self, l, n):
-        for i in range(0, len(l), n):
-            yield l[i : i + n]
-        pass
     
 
 
@@ -101,14 +138,16 @@ class NeuralNetwork():
         print(f"Length of weights array {len(self.weights)}")
         # print(type(self.weights))
         for array in self.weights:
-            print(f"array: {array}")
+            print(f"array: {array.shape}")
     
     # tester method to make sure my forward list looks right
     def printForwardList(self):
         print("Output of each Layer is:")
-
-        for k, array in enumerate(self.__forward()):
-            print(f"Layer {k + 1}: {array}")
+        layerOutputList = np.array(self.__forward(self.inputs))
+        for k, array in enumerate(layerOutputList):
+            print(f"Layer {k + 1}: {array.shape}")
+        
+        print(f"length of layer list: {len(layerOutputList)}")
 
     # tester method to make sure my multiplication isnt goofy for Forward
     def checkForwardMultiplication(self):
@@ -175,16 +214,16 @@ def preprocessData(raw):
 def main():
 
     ((xTrain, yTrainP), (xTest, yTestP)) = preprocessData(getRawData())
-    matrix1 = xTrain[0]
-    print(type(matrix1))
-    matrix2 = yTrainP[0]
-    print(matrix2)
-    #print("TESTER 1")
-   
-    #tester2 = NeuralNetwork([1.0,2.0],10,5,3)
-    # tester2.printWeights()
-    # tester2.checkForwardMultiplication()
-    #tester2.predict()
+    #matrix1 = xTrain[0]
+    #print(type(matrix1))
+    #matrix2 = yTrainP[0]
+    #print(matrix2)
+    print("TESTER 1")
+    tester1 = NeuralNetwork([xTrain, yTrainP], 784, 10, 16, 2)
+    # tester1.train()
+    tester1.printWeights()
+    tester1.printForwardList()
+    
 
 
 if __name__ == '__main__':
