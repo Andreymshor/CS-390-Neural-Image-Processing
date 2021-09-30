@@ -4,7 +4,7 @@ import tensorflow as tf
 from tensorflow import keras
 from tensorflow.keras.utils import to_categorical
 import random
-
+from tqdm import tqdm
 
 random.seed(1618)
 np.random.seed(1618)
@@ -31,7 +31,7 @@ class NeuralNetwork():
 
 
         inputLayerWeights = np.random.randn(self.inputSize, self.neuronsPerLayer)
-        self.weights.append(inputLayerWeights)
+        self.weights.append(inputLayerWeights) 
 
         # creates weights for n - 1 layers
         for _ in range(1, numLayers - 1):
@@ -57,17 +57,27 @@ class NeuralNetwork():
             currInput = example # (1 x n) matrix
             for weight in self.weights: # weight is an n x m matrix
                 currLayer = np.dot(currInput, weight) 
-                activationList = [self.__sigmoid(elem) for elem in currLayer]
+                activationList = list(self.__sigmoid(np.array(currLayer, dtype=np.longdouble)))
                 layerOutputList.append(activationList)
                 currInput = activationList
             batchOutputList.append(layerOutputList)
         return batchOutputList 
 
-    def predict(self):
-        prediction = self.__forward()[len(self.__forward()) - 1] # array of 1 by 10
+    def predict(self, testX, testY):
+        predictions = self.__forward(testX)
+        print(len(predictions))
+        accuracy = 0
+        for i, layerOutputList in enumerate(predictions):
+            currentPredictionArr = layerOutputList[len(layerOutputList) - 1]
+            #print(np.asarray(currentPredictionArr).shape)
+            pred = currentPredictionArr.index(max(currentPredictionArr))
+            actual = list(testY[i]).index(max(list(testY[i])))
+            if pred == actual:
+                accuracy += 1
+            
 
         # predict the actual classifed value
-        return prediction
+        return accuracy / len(testY)
 
     
 
@@ -77,60 +87,125 @@ class NeuralNetwork():
         # cost function: (predicted - actual)^2
         # cost function derivative: 2 * (predicted - actual)
         # returns the avg loss and the avg loss derivative
+        # print(f"Shape of predicted Values: {np.array(predictedValues).shape}")
         cost = 0
         costDer = 0
         for i in range(len(predictedValues)):
             currPrediction = predictedValues[i][len(predictedValues[i]) - 1] # ith array in predicted
+            # print(f"currPrediction: {currPrediction}")
             currActual = actualValues[i] # ith array in actual
+            # print(currActual)
             for j in range(len(currPrediction)):
-                cost += (actualValues[i] - predictedValues[i])**2
-                costDer += 2 * (actualValues[i] - predictedValues[i]) # add to weights
+                cost += (currActual[j] - currPrediction[j])**2
+                costDer += 2 * (currActual[j] - currPrediction[j]) # add to weights
         return (cost / len(predictedValues) , costDer / len(predictedValues))
 
 
         
 
-    def __backPropogation(self, batchOutputList, Y):
-        weights = self.weights
-        # predictedValues = layerOutputList[len(layerOutputList) - 1]
-        # LCost, LCostDer = self.__avgloss(predictedValues, Y)
-        # for layer in range(len(layerOutputList) - 1, -1, -1):
-        #     currLayer = layerOutputList[layer]
-        #     sigDelt = [self.__sigmoidDerivative(elem) for elem in currLayer]
+    def __backPropogation(self, X,batchOutputList,Y):
+        #print("In backProp")
+        weightRecs = []
+        avgCost, avgCostDer = self.__avgloss(batchOutputList, Y)
+        # for each example in batch outputlist, find the values of the last layer neurons,
+        # those are predictions
+        for i, example in enumerate(X):
+            exCostDer = avgCostDer
+            weights = self.weights
+            adjustedWeight = []
+            layerDelta = [] # layerDelta is in reverse order (starts from end and goes to forward), so make sure to reverse the list
+            layerOutputList = batchOutputList[i]
+            #for layer in range(self.numLayers, )
+            for layer in range(len(layerOutputList) - 1, -1, -1):
+                currLayer = layerOutputList[layer]
+                # prevLayer = []
+                if layer == 0:
+                    dP = np.dot(example, self.weights[0])
+                    delta = np.array([self.__sigmoidDerivative(elem) for elem in dP]) * exCostDer
+                    layerDelta.append(delta)
+                else: 
+                    prevLayer = layerOutputList[layer - 1]
+                    dotProductArr = np.dot(prevLayer, self.weights[layer])
+                    currLayerDelta = np.array([self.__sigmoidDerivative(elem) for elem in dotProductArr]) * exCostDer
+                    layerDelta.append(currLayerDelta)
+                    exCostDer = np.dot(currLayerDelta, np.transpose(self.weights[layer]))
+            
 
-             
+            # COMPUTE ADJUSTMENTS 
+            # Reverse layerDelta list 
+            layerDelta = layerDelta[::-1]
+            adjustments = []
+            
+            layerZeroAdjustment = np.dot(example.reshape(len(example), 1), np.transpose(layerDelta[0].reshape(len(layerDelta[0]),1))) * self.lr
+            adjustments.append(layerZeroAdjustment)
+            for i in range(1, len(layerDelta)):
+                arrayToAppend = np.dot(np.transpose(np.array(layerOutputList[i])), layerDelta[i]) * self.lr
+                adjustments.append(arrayToAppend)
+
+            for i in range(len(weights)):
+                adjustedWeight.append(np.add(np.array(weights[i]), adjustments[i]))
+            
+            
+            weightRecs.append(adjustedWeight)
+
+
+        # Compute average adjustment for each layer and set that to be the new weights  
+        averagedWeights = []
         
-        pass
+        for i in range(len(self.weights)):
+            sum = np.zeros(self.weights[i].shape)
+            for adjustedWeight in weightRecs:
+                sum = np.add(sum, adjustedWeight[i])
+            averagedWeights.append(np.true_divide(sum, len(weightRecs)))
+        
+        self.weights = averagedWeights
+
+
+
+                
 
     # brains behind training neural network. Will use a loop to go through the examples
     # provided in the input data and labels, with or without batches, along w/ a size 
     # for the minibatches.
     
     def train(self, epochs = 100000, minibatches = True, mbs = 100):
-        for i in epochs:
-           batchX, batchY = self.__batchGenerator(self.inputs, self.labels, mbs)
+        pbar = tqdm(total=epochs)
+        for i in range(epochs):
+           batchesOfX = [x for x in self.__batchGenerator(self.inputs, mbs)]
+        #    print(np.array(batchesOfX).shape)
+           batchesOfY = [y for y in self.__batchGenerator(self.labels, mbs)]
+        #    print(np.array(batchesOfY).shape)
+           #batchX = []
+           #batchY = []
+           if i < len(batchesOfX):
+               batchX = batchesOfX[i]
+               batchY = batchesOfY[i] 
+           else:
+               i = 0
+           
+           # print(batchX.shape)
+        #    print(batchY.shape)
+           
            batchOutputList = self.__forward(batchX)
-           self.__backPropogation(batchOutputList, batchY)
+           self.__backPropogation(batchX, batchOutputList, batchY)
+           pbar.update(1)
         
         return self.weights
     
     
     # idea from https://datascience.stackexchange.com/questions/47623/how-feed-a-numpy-array-in-batches-in-keras
-    def __batchGenerator(self, X, Y, batch_size = 1):
-        indices = np.arange(len(X))
-        batch = []
-        while len(batch) != batch_size:
-            np.random.shuffle(indices)
-            for i in indices:
-                batch.append(i)
-            
-        return X[batch], Y[batch]
+    def __batchGenerator(self, l, n):
+        for i in range(0, len(l), n):
+            yield l[i : i + n]
 
     
 
 
 
     #------------------------- TESTER METHODS ---------------------------#
+    def printOnlyWeights(self):
+        for weight in self.weights:
+            print(weight)
 
     # tester method for making sure I printed the right number of weights
     def printWeights(self): 
@@ -144,9 +219,9 @@ class NeuralNetwork():
     def printForwardList(self):
         print("Output of each Layer is:")
         layerOutputList = np.array(self.__forward(self.inputs))
-        for k, array in enumerate(layerOutputList):
-            print(f"Layer {k + 1}: {array.shape}")
-        
+        for k, array in enumerate(layerOutputList[0]):
+            print(f"Layer {k + 1}: {np.asarray(array).shape}")
+            print(f"{np.asarray(array)}")
         print(f"length of layer list: {len(layerOutputList)}")
 
     # tester method to make sure my multiplication isnt goofy for Forward
@@ -220,9 +295,15 @@ def main():
     #print(matrix2)
     print("TESTER 1")
     tester1 = NeuralNetwork([xTrain, yTrainP], 784, 10, 16, 2)
-    # tester1.train()
-    tester1.printWeights()
-    tester1.printForwardList()
+    print("ORIGINAL WEIGHTS:")
+    tester1.printOnlyWeights()
+    model = tester1.train(epochs=1000)
+    print("MODEL AFTER TRAINING:")
+    for weight in model: 
+        print(weight)
+    print(tester1.predict(xTest,yTestP))
+    # tester1.printWeights()
+    # tester1.printForwardList()
     
 
 
