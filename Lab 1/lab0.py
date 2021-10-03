@@ -4,6 +4,7 @@ import numpy as np
 import tensorflow as tf
 from tensorflow import keras
 from tensorflow.keras.utils import to_categorical
+#from sklearn.metrics import confusion_matrix
 import random
 from tqdm import tqdm
 
@@ -22,9 +23,9 @@ NUM_CLASSES = 10
 IMAGE_SIZE = 784
 
 # Use these to set the algorithm to use.
-#ALGORITHM = "guesser"
+ALGORITHM = "guesser"
 #ALGORITHM = "custom_net"
-ALGORITHM = "tf_net"
+#ALGORITHM = "tf_net"
 
 
 
@@ -91,6 +92,8 @@ class NeuralNetwork_2Layer():
 
     def evalModel(self, xVals, yVals):
         accuracy = 0
+        preds = []
+        actuals = []
         for i, example in enumerate(xVals):
             predArr = list(self.predict(example))
             pred = predArr.index(max(predArr))
@@ -98,8 +101,12 @@ class NeuralNetwork_2Layer():
             actual = actualArr.index(max(actualArr))
             if pred == actual: 
                 accuracy += 1
+            preds.append(pred)
+            actuals.append(actual)
             
         print(f"ACCURACY: {accuracy / len(xVals) * 100}%")
+        confusionMatrix = tf.math.confusion_matrix(actuals, preds, num_classes=None, weights=None, dtype=tf.dtypes.int32, name=None)
+        print(f"Confusion Matrix:\n{confusionMatrix}")
         return accuracy / len(xVals)
     
     def getWeights(self):
@@ -159,7 +166,7 @@ def trainModel(xTrain, yTrain):
         return NeuralNetwork
     elif ALGORITHM == "tf_net":
         print("Building and training TF_NN.")
-        model = tf.keras.models.Sequential([tf.keras.layers.Dense(784, activation='relu'), tf.keras.layers.Dense(10, activation=tf.nn.sigmoid)])
+        model = tf.keras.models.Sequential([tf.keras.layers.Flatten(),tf.keras.layers.Dense(784, activation='relu'), tf.keras.layers.Dense(10, activation=tf.nn.sigmoid)])
         optimizer = tf.keras.optimizers.Adam(0.001)
         loss = tf.keras.losses.categorical_crossentropy
         model.compile(optimizer=optimizer, loss=loss, metrics=['accuracy'])
@@ -182,11 +189,14 @@ def runModel(xTest, yTest, model):
     elif ALGORITHM == "tf_net":
         print("predicting and evaluating TF_NN.")
         pred = model.predict(xTest)
+        print(pred.shape)
+        print(yTest.shape)
         test_loss, test_acc = model.evaluate(xTest, yTest, verbose=2)
-        confusionMatrix = tf.math.confusion_matrix(yTest, pred, num_classes=None, weights=None, dtype=tf.dtypes.int32, name=None)
+        confusionMatrix = tf.math.confusion_matrix(tf.argmax(yTest,1), tf.argmax(pred,1), num_classes=None, weights=None, dtype=tf.dtypes.int32, name=None)
+        #confusionMatrix = confusion_matrix(np.argmax(yTest, axis=1), np.argmax(pred, axis=1))
         print(f'\nTest accuracy:{test_acc}')
         print(f'\nTest loss: {test_loss}')
-        print(f"\nConfusion matrix: {confusionMatrix}")
+        print(f"\nConfusion matrix:\n {confusionMatrix}")
 
         
     else:
@@ -200,9 +210,11 @@ def evalResults(data, preds):   #TODO: Add F1 score confusion matrix here.
     for i in range(preds.shape[0]):
         if np.array_equal(preds[i], yTest[i]):   acc = acc + 1
     accuracy = acc / preds.shape[0]
+
+    confusionMatrix = tf.math.confusion_matrix(tf.argmax(yTest,1), tf.argmax(preds,1), num_classes=None, weights=None, dtype=tf.dtypes.int32, name=None)
     print("Classifier algorithm: %s" % ALGORITHM)
     print("Classifier accuracy: %f%%" % (accuracy * 100))
-    print()
+    print(f"\nConfusion matrix:\n {confusionMatrix}")
 
 
 
