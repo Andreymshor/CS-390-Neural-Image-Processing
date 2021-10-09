@@ -23,8 +23,8 @@ NUM_CLASSES = 10
 IMAGE_SIZE = 784
 
 # Use these to set the algorithm to use.
-ALGORITHM = "guesser"
-#ALGORITHM = "custom_net"
+#ALGORITHM = "guesser"
+ALGORITHM = "custom_net"
 #ALGORITHM = "tf_net"
 
 
@@ -107,6 +107,9 @@ class NeuralNetwork_2Layer():
         print(f"ACCURACY: {accuracy / len(xVals) * 100}%")
         confusionMatrix = tf.math.confusion_matrix(actuals, preds, num_classes=None, weights=None, dtype=tf.dtypes.int32, name=None)
         print(f"Confusion Matrix:\n{confusionMatrix}")
+        recall = np.diag(confusionMatrix) / np.sum(confusionMatrix, axis = 1)
+        precision = np.diag(confusionMatrix) / np.sum(confusionMatrix, axis = 0)
+        print(f"recall: {np.mean(recall)}. precision: {np.mean(precision)}")        
         return accuracy / len(xVals)
     
     def getWeights(self):
@@ -166,7 +169,7 @@ def trainModel(xTrain, yTrain):
         return NeuralNetwork
     elif ALGORITHM == "tf_net":
         print("Building and training TF_NN.")
-        model = tf.keras.models.Sequential([tf.keras.layers.Flatten(),tf.keras.layers.Dense(784, activation='relu'), tf.keras.layers.Dense(10, activation=tf.nn.sigmoid)])
+        model = tf.keras.models.Sequential([tf.keras.layers.Dense(784, activation='relu'), tf.keras.layers.Dense(10, activation=tf.nn.sigmoid)])
         optimizer = tf.keras.optimizers.Adam(0.001)
         loss = tf.keras.losses.categorical_crossentropy
         model.compile(optimizer=optimizer, loss=loss, metrics=['accuracy'])
@@ -193,12 +196,14 @@ def runModel(xTest, yTest, model):
         print(yTest.shape)
         test_loss, test_acc = model.evaluate(xTest, yTest, verbose=2)
         confusionMatrix = tf.math.confusion_matrix(tf.argmax(yTest,1), tf.argmax(pred,1), num_classes=None, weights=None, dtype=tf.dtypes.int32, name=None)
+       
         #confusionMatrix = confusion_matrix(np.argmax(yTest, axis=1), np.argmax(pred, axis=1))
         print(f'\nTest accuracy:{test_acc}')
         print(f'\nTest loss: {test_loss}')
         print(f"\nConfusion matrix:\n {confusionMatrix}")
-
-        
+        recall = np.diag(confusionMatrix) / np.sum(confusionMatrix, axis = 1)
+        precision = np.diag(confusionMatrix) / np.sum(confusionMatrix, axis = 0)
+        print(f"recall: {np.mean(recall)}. precision: {np.mean(precision)}")        
     else:
         raise ValueError("Algorithm not recognized.")
 
