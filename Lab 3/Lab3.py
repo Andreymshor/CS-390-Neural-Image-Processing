@@ -10,7 +10,7 @@ from PIL import Image
 from scipy.optimize import fmin_l_bfgs_b   # https://docs.scipy.org/doc/scipy/reference/generated/scipy.optimize.fmin_l_bfgs_b.html
 from tensorflow.keras.applications import vgg19
 from tensorflow.keras.preprocessing.image import load_img, img_to_array
-from sklearn.externals._pilutil import imsave
+
 import warnings
 tf.compat.v1.disable_eager_execution()
 
@@ -144,8 +144,9 @@ def styleTransfer(cData, sData, tData):
         print("      Loss: %f." % tLoss)
         img = deprocessImage(dpImg)
         saveFile = "./styleTransfer.png"   #TODO: Implement.
-        #Image.fromarray(img).save(saveFile)   #Uncomment when everything is working right.
-        imsave(saveFile, img)
+        #print(img)
+        im = Image.fromarray(np.clip(img, 0, 255).astype('uint8'))
+        im.save(saveFile)
         print("      Image saved to \"%s\"." % saveFile)
     print("   Transfer complete.")
 
