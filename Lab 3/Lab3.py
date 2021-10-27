@@ -68,13 +68,6 @@ def contentLoss(content, gen):
     return K.sum(K.square(gen - content))
 
 
-def totalLoss(x):
-    return x
-
-
-
-
-
 #=========================<Pipeline Functions>==================================
 
 def getRawData():
