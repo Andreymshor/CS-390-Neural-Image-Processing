@@ -28,9 +28,9 @@ os.environ['TF_CPP_MIN_LOG_LEVEL'] = '2'
 #ALGORITHM = "tf_net"
 ALGORITHM = "tf_conv"
 
-DATASET = "mnist_d" # ANN: 97.68%, CNN: 99.17% MNIST_D (10 epochs)
+#DATASET = "mnist_d" # ANN: 97.68%, CNN: 99.17% MNIST_D (10 epochs)
 #DATASET = "mnist_f" # ANN: 89.5%, CNN: 92.44% (10 epochs)
-#DATASET = "cifar_10" # ANN: 39.13%, CNN: 74.82 (10 epochs)
+DATASET = "cifar_10" # ANN: 39.13%, CNN: 74.82 (10 epochs)
 #DATASET = "cifar_100_f" #ANN: 1%, CNN: 41.59% (10 epochs)
 #DATASET = "cifar_100_c" #ANN: 5% CNN: 56.43% (10 epochs)
 
